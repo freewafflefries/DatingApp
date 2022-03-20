@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -52,6 +53,29 @@ namespace API.Controllers
            return await _userRepository.GetMemberAsync(userName);
            
 ;            
+        }
+
+        [HttpPut]
+        public async Task<ActionResult> UpdateUser(MemberUpdateDto memberUpdateDto)
+        {
+            //The ControllerBase class (from which all our Controllers are inheriting) has a User class property (of Type Security Principal) to help us identify who is using it
+            //The FindFirst method takes a ClaimType as its argument to lookup the User
+            var userName = User.FindFirst(ClaimTypes.NameIdentifier)?.Value; 
+
+            //now that we have figured out the userName of our resource calling the API, we can lookup our app's user from the _userRepository
+            var user = await _userRepository.GetUserByUsernameAsync(userName);
+
+            //using AutoMapper to map the values from our DTO to the user entity we just fetched from persistence
+            _mapper.Map(memberUpdateDto, user);
+
+            //Finally, we need to update the _userRepository with the changes we just applied (essentially, we just hit the "save" button)
+            //Apply the changes...
+            _userRepository.UpdateProfile(user);
+
+            //Hit "save" and if it is suceesfful, we return NoContent, otherwise, return a BadRequest (because we gotta return something)
+            if(await _userRepository.SaveAllAsync()) return NoContent();
+
+            return BadRequest("Failed to Update User");
         }
     }
 
